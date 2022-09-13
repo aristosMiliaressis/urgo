@@ -12,7 +12,7 @@ USAGE: cat urls.txt | urgo [OPTIONS]
 REQUEST OPTIONS:
         -m, --method
                 specifies http method to use
-        -h, --req-header
+        -H, --req-header
                 adds request header (can be used multiple times)
 
 EXTRACTION OPTIONS:

@@ -11,7 +11,7 @@ func main() {
 	var opts Options
 
 	opts.Parse()
-	if opts.Output.PrintHelp == true {
+	if opts.Output.PrintHelp {
 		print_help()
 		return
 	}
