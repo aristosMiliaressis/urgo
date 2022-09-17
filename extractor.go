@@ -52,7 +52,10 @@ func (ext Extractor) Extract(url string) (UrlMetadata, error) {
 	metadata.ResponseTime = elapsed.Milliseconds()
 	metadata.ResponseHeasers = map[string]string{}
 	for _, header := range ext.ExtractionOptions.Headers {
-		metadata.ResponseHeasers[header] = resp.Header.Get(header)
+		headerValue := resp.Header.Get(header)
+		if len(headerValue) > 0 {
+			metadata.ResponseHeasers[header] = headerValue
+		}
 	}
 	if ext.ExtractionOptions.FaviconHash {
 		metadata.FaviconHash = ext.ExtractFavicon(client, url, resp.Body)
