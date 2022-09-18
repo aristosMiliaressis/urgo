@@ -11,13 +11,14 @@ import (
 	"strings"
 	"time"
 
-	net_html "golang.org/x/net/html"
+	"github.com/PuerkitoBio/goquery"
 )
 
 type UrlMetadata struct {
 	Url             string
 	StatusCode      int               `json:"StatusCode,omitempty"`
 	ResponseHeasers map[string]string `json:"ResponseHeasers,omitempty"`
+	Title           string            `json:"Title,omitempty"`
 	ResponseTime    int64             `json:"ResponseTime,omitempty"`
 	RegexMatches    []string          `json:"RegexMatches,omitempty"`
 	FaviconHash     string            `json:"FaviconHash,omitempty"`
@@ -31,7 +32,7 @@ type Extractor struct {
 func (ext Extractor) Extract(url string) (UrlMetadata, error) {
 	var metadata = UrlMetadata{Url: url}
 	transCfg := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // ignore expired SSL certificates
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	client := http.Client{Transport: transCfg}
 
@@ -48,8 +49,6 @@ func (ext Extractor) Extract(url string) (UrlMetadata, error) {
 	t := time.Now()
 	elapsed := t.Sub(start)
 
-	metadata.StatusCode = resp.StatusCode
-	metadata.ResponseTime = elapsed.Milliseconds()
 	metadata.ResponseHeasers = map[string]string{}
 	for _, header := range ext.ExtractionOptions.Headers {
 		headerValue := resp.Header.Get(header)
@@ -57,47 +56,64 @@ func (ext Extractor) Extract(url string) (UrlMetadata, error) {
 			metadata.ResponseHeasers[header] = headerValue
 		}
 	}
+
+	if ext.ExtractionOptions.StatusCode {
+		metadata.StatusCode = resp.StatusCode
+	}
+
+	if ext.ExtractionOptions.ResponseTime {
+		metadata.ResponseTime = elapsed.Milliseconds()
+	}
+
+	if ext.ExtractionOptions.Title {
+		metadata.Title = ExtractByCssSelector("title", resp.Body)
+	}
+
 	if ext.ExtractionOptions.FaviconHash {
 		metadata.FaviconHash = ext.ExtractFavicon(client, url, resp.Body)
 	}
 
-	// TODO: implement regex extraction
-
 	return metadata, nil
 }
 
+func ExtractByCssSelector(selector string, bodyReader io.ReadCloser) string {
+	doc, _ := goquery.NewDocumentFromReader(bodyReader)
+	return doc.Find(selector).Text()
+}
+
 func (ext Extractor) ExtractFavicon(client http.Client, requestUrl string, bodyReader io.ReadCloser) string {
-	var getAttribute func(n *net_html.Node, key string) string
-	getAttribute = func(n *net_html.Node, key string) string {
+	// var getAttribute func(n *net_html.Node, key string) string
+	// getAttribute = func(n *net_html.Node, key string) string {
 
-		for _, attr := range n.Attr {
+	// 	for _, attr := range n.Attr {
 
-			if attr.Key == key {
-				return attr.Val
-			}
-		}
+	// 		if attr.Key == key {
+	// 			return attr.Val
+	// 		}
+	// 	}
 
-		return ""
-	}
+	// 	return ""
+	// }
 
-	body, _ := ioutil.ReadAll(bodyReader)
-	htmlText := string(body)
-	doc, _ := net_html.Parse(strings.NewReader(htmlText))
-	var crawler func(*net_html.Node) string
-	crawler = func(node *net_html.Node) string {
-		if node.Type == net_html.ElementNode && node.Data == "link" && strings.Contains(getAttribute(node, "rel"), "icon") {
-			return getAttribute(node, "href")
-		}
-		for child := node.FirstChild; child != nil; child = child.NextSibling {
-			faviconUrl := crawler(child)
-			if faviconUrl != "" {
-				return faviconUrl
-			}
-		}
-		return ""
-	}
+	// body, _ := ioutil.ReadAll(bodyReader)
+	// htmlText := string(body)
+	// doc, _ := net_html.Parse(strings.NewReader(htmlText))
+	// var crawler func(*net_html.Node) string
+	// crawler = func(node *net_html.Node) string {
+	// 	if node.Type == net_html.ElementNode && node.Data == "link" && strings.Contains(getAttribute(node, "rel"), "icon") {
+	// 		return getAttribute(node, "href")
+	// 	}
+	// 	for child := node.FirstChild; child != nil; child = child.NextSibling {
+	// 		faviconUrl := crawler(child)
+	// 		if faviconUrl != "" {
+	// 			return faviconUrl
+	// 		}
+	// 	}
+	// 	return ""
+	// }
 
-	faviconUrl := crawler(doc)
+	//faviconUrl := crawler(doc)
+	faviconUrl := ExtractByCssSelector("link[rel=icon]", bodyReader)
 	if faviconUrl == "" {
 		faviconUrl = "/favicon.ico" // TODO: should i bruteforce other image extensions?
 	}
@@ -118,7 +134,7 @@ func (ext Extractor) ExtractFavicon(client http.Client, requestUrl string, bodyR
 	if !strings.HasPrefix(contentType, "image/") {
 		return ""
 	}
-	body, _ = ioutil.ReadAll(resp.Body)
+	body, _ := ioutil.ReadAll(resp.Body)
 	hash := md5.Sum(body)
 
 	return hex.EncodeToString(hash[:])

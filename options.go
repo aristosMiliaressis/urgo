@@ -36,6 +36,7 @@ type ExtractionOptions struct {
 	StatusCode   bool
 	ContentType  bool
 	ResponseTime bool
+	Title        bool
 	Headers      strslice
 	Regex        strslice
 	FaviconHash  bool
@@ -59,6 +60,8 @@ func (opts *Options) Parse() {
 	flag.BoolVar(&opts.Extraction.StatusCode, "status-code", false, "extracts the response status code")
 	flag.BoolVar(&opts.Extraction.ResponseTime, "rT", false, "extracts the response time")
 	flag.BoolVar(&opts.Extraction.ResponseTime, "response-time", false, "extracts the response time")
+	flag.BoolVar(&opts.Extraction.Title, "T", false, "extracts the page title")
+	flag.BoolVar(&opts.Extraction.Title, "title", false, "extracts the page title")
 	flag.BoolVar(&opts.Extraction.FaviconHash, "f", false, "extracts favicon hash")
 	flag.BoolVar(&opts.Extraction.FaviconHash, "favicon", false, "extracts favicon hash")
 	flag.Var(&opts.Extraction.Regex, "rE", "regex extract (can be used multiple times)")
@@ -90,6 +93,8 @@ func print_help() {
 	fmt.Println("\t\textracts the response time")
 	fmt.Println("\t-rH, --resp-header")
 	fmt.Println("\t\textracts the specified response header (can be used multiple times)")
+	fmt.Println("\t-T, --title")
+	fmt.Println("\t\textracts the page title")
 	// fmt.Println("\t-rE, --regex-extract")
 	// fmt.Println("\t\tregex extract (can be used multiple times)")
 	fmt.Println("\t-f, --favicon")
